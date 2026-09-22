@@ -35,81 +35,13 @@
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  body {
-    display: flex;
-    flex-direction: column;
-  }
+  body { display: flex; flex-direction: column; }
   header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--panel);
   }
-  header h1 {
-    font-size: 16px;
-    margin: 0;
-    font-weight: 600;
-  }
-  header .status {
-    font-size: 12px;
-    color: var(--muted);
-  }
-  button.icon-btn {
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 18px;
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-  button.icon-btn:hover { background: var(--assistant-bubble); }
-
-  #settings-panel {
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px 16px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-  }
-  #settings-panel.open { display: flex; }
-  #settings-panel label {
-    font-size: 12px;
-    color: var(--muted);
-    display: block;
-    margin-bottom: 4px;
-  }
-  #settings-panel input, #settings-panel textarea {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--bg);
-    color: var(--text);
-    font-size: 13px;
-    font-family: inherit;
-  }
-  #settings-panel textarea { resize: vertical; min-height: 50px; }
-  .settings-row { display: flex; gap: 10px; }
-  .settings-row > div { flex: 1; }
-  .settings-actions { display: flex; gap: 8px; justify-content: flex-end; }
-  .settings-actions button {
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .settings-actions button.primary {
-    background: var(--accent);
-    color: var(--accent-text);
-    border-color: var(--accent);
-  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
 
   #chat {
     flex: 1;
@@ -146,14 +78,12 @@
     color: var(--error);
     border: 1px solid var(--error);
   }
-  .msg.pending { color: var(--muted); }
 
   #empty-hint {
     margin: auto;
     text-align: center;
     color: var(--muted);
     font-size: 13px;
-    max-width: 320px;
   }
 
   form#composer {
@@ -185,49 +115,15 @@
     font-weight: 600;
     cursor: pointer;
   }
-  form#composer button:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
+  form#composer button:disabled { opacity: 0.5; cursor: default; }
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Talk to Qwen</h1>
-    <div class="status" id="status-line">not configured</div>
-  </div>
-  <button class="icon-btn" id="settings-toggle" title="Settings" aria-label="Settings">⚙</button>
-</header>
-
-<div id="settings-panel">
-  <div>
-    <label for="endpoint-input">vLLM endpoint URL</label>
-    <input id="endpoint-input" type="text" placeholder="http://100.76.19.104:8000/v1/chat/completions">
-  </div>
-  <div class="settings-row">
-    <div>
-      <label for="model-input">Model</label>
-      <input id="model-input" type="text" placeholder="Qwen/Qwen2.5-7B-Instruct">
-    </div>
-    <div>
-      <label for="key-input">API key (optional)</label>
-      <input id="key-input" type="text" placeholder="leave blank if none">
-    </div>
-  </div>
-  <div>
-    <label for="system-input">System prompt (optional)</label>
-    <textarea id="system-input" placeholder="You are a helpful assistant."></textarea>
-  </div>
-  <div class="settings-actions">
-    <button type="button" id="clear-chat-btn">Clear chat</button>
-    <button type="button" id="save-settings-btn" class="primary">Save</button>
-  </div>
-</div>
+<header><h1>Talk to Qwen</h1></header>
 
 <div id="chat">
-  <div id="empty-hint">Set your vLLM endpoint in ⚙ settings, then say hello.</div>
+  <div id="empty-hint">Say hello.</div>
 </div>
 
 <form id="composer">
@@ -236,39 +132,17 @@
 </form>
 
 <script>
-  const STORAGE_KEY = "talktoqwen.settings.v1";
+  const ENDPOINT = "http://100.76.19.104:8000/v1/chat/completions";
+  const MODEL = "Qwen/Qwen2.5-7B-Instruct";
   const HISTORY_KEY = "talktoqwen.history.v1";
 
   const els = {
-    settingsToggle: document.getElementById("settings-toggle"),
-    settingsPanel: document.getElementById("settings-panel"),
-    endpointInput: document.getElementById("endpoint-input"),
-    modelInput: document.getElementById("model-input"),
-    keyInput: document.getElementById("key-input"),
-    systemInput: document.getElementById("system-input"),
-    saveBtn: document.getElementById("save-settings-btn"),
-    clearBtn: document.getElementById("clear-chat-btn"),
-    statusLine: document.getElementById("status-line"),
     chat: document.getElementById("chat"),
     emptyHint: document.getElementById("empty-hint"),
     composer: document.getElementById("composer"),
     messageInput: document.getElementById("message-input"),
     sendBtn: document.getElementById("send-btn"),
   };
-
-  function loadSettings() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-    } catch {
-      return {};
-    }
-  }
-
-  function saveSettings(settings) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch {}
-  }
 
   function loadHistory() {
     try {
@@ -277,35 +151,11 @@
       return [];
     }
   }
-
   function saveHistory(history) {
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    } catch {}
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch {}
   }
 
-  let settings = Object.assign(
-    { endpoint: "", model: "Qwen/Qwen2.5-7B-Instruct", apiKey: "", system: "" },
-    loadSettings()
-  );
   let history = loadHistory();
-
-  function refreshStatus() {
-    if (!settings.endpoint) {
-      els.statusLine.textContent = "not configured — click ⚙";
-    } else {
-      let host = settings.endpoint;
-      try { host = new URL(settings.endpoint).host; } catch {}
-      els.statusLine.textContent = `${settings.model || "model"} @ ${host}`;
-    }
-  }
-
-  function populateSettingsForm() {
-    els.endpointInput.value = settings.endpoint;
-    els.modelInput.value = settings.model;
-    els.keyInput.value = settings.apiKey;
-    els.systemInput.value = settings.system;
-  }
 
   function renderHistory() {
     els.chat.innerHTML = "";
@@ -313,44 +163,19 @@
       els.chat.appendChild(els.emptyHint);
       return;
     }
-    for (const msg of history) {
-      appendBubble(msg.role, msg.content);
-    }
+    for (const msg of history) appendBubble(msg.role, msg.content);
     els.chat.scrollTop = els.chat.scrollHeight;
   }
 
-  function appendBubble(role, content, extraClass) {
+  function appendBubble(role, content) {
     if (els.emptyHint.parentNode) els.emptyHint.remove();
     const div = document.createElement("div");
-    div.className = "msg " + role + (extraClass ? " " + extraClass : "");
+    div.className = "msg " + role;
     div.textContent = content;
     els.chat.appendChild(div);
     els.chat.scrollTop = els.chat.scrollHeight;
     return div;
   }
-
-  els.settingsToggle.addEventListener("click", () => {
-    populateSettingsForm();
-    els.settingsPanel.classList.toggle("open");
-  });
-
-  els.saveBtn.addEventListener("click", () => {
-    settings = {
-      endpoint: els.endpointInput.value.trim(),
-      model: els.modelInput.value.trim() || "Qwen/Qwen2.5-7B-Instruct",
-      apiKey: els.keyInput.value.trim(),
-      system: els.systemInput.value.trim(),
-    };
-    saveSettings(settings);
-    refreshStatus();
-    els.settingsPanel.classList.remove("open");
-  });
-
-  els.clearBtn.addEventListener("click", () => {
-    history = [];
-    saveHistory(history);
-    renderHistory();
-  });
 
   els.messageInput.addEventListener("input", () => {
     els.messageInput.style.height = "auto";
@@ -369,11 +194,6 @@
     const text = els.messageInput.value.trim();
     if (!text) return;
 
-    if (!settings.endpoint) {
-      appendBubble("error", "Set your vLLM endpoint URL in ⚙ settings first.");
-      return;
-    }
-
     els.messageInput.value = "";
     els.messageInput.style.height = "auto";
 
@@ -381,23 +201,17 @@
     saveHistory(history);
     appendBubble("user", text);
 
-    const pending = appendBubble("assistant", "…", "pending");
+    const assistantBubble = appendBubble("assistant", "");
     els.sendBtn.disabled = true;
 
-    const apiMessages = [];
-    if (settings.system) apiMessages.push({ role: "system", content: settings.system });
-    for (const m of history) apiMessages.push({ role: m.role, content: m.content });
-
     try {
-      const headers = { "Content-Type": "application/json" };
-      if (settings.apiKey) headers["Authorization"] = "Bearer " + settings.apiKey;
-
-      const res = await fetch(settings.endpoint, {
+      const res = await fetch(ENDPOINT, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: settings.model,
-          messages: apiMessages,
+          model: MODEL,
+          messages: history,
+          stream: true,
         }),
       });
 
@@ -406,18 +220,45 @@
         throw new Error(`HTTP ${res.status} ${res.statusText}${bodyText ? " — " + bodyText.slice(0, 300) : ""}`);
       }
 
-      const data = await res.json();
-      const reply = data?.choices?.[0]?.message?.content ?? "(empty response)";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let full = "";
 
-      pending.classList.remove("pending");
-      pending.textContent = reply;
-      history.push({ role: "assistant", content: reply });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const payload = trimmed.slice(5).trim();
+          if (payload === "[DONE]") continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json?.choices?.[0]?.delta?.content;
+            if (delta) {
+              full += delta;
+              assistantBubble.textContent = full;
+              els.chat.scrollTop = els.chat.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+
+      if (!full) full = "(empty response)";
+      assistantBubble.textContent = full;
+      history.push({ role: "assistant", content: full });
       saveHistory(history);
     } catch (err) {
-      pending.remove();
+      assistantBubble.remove();
       let hint = "";
       if (err instanceof TypeError) {
-        hint = " (This is often CORS or mixed-content blocking — see README.)";
+        hint = " (often CORS or mixed-content blocking — see README)";
       }
       appendBubble("error", "Request failed: " + err.message + hint);
     } finally {
@@ -426,10 +267,7 @@
     }
   });
 
-  populateSettingsForm();
-  refreshStatus();
   renderHistory();
-  if (!settings.endpoint) els.settingsPanel.classList.add("open");
 </script>
 
 </body>

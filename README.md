@@ -1,16 +1,18 @@
 # Talk to Qwen
 
-A single static page (`index.html`, no build step) that sends chat requests
-straight from your browser to a vLLM OpenAI-compatible server, e.g.
+A single static page (`index.html`, no build step, just a text box) that
+streams chat responses straight from your browser to a vLLM
+OpenAI-compatible server via SSE. The endpoint and model are hardcoded in
+`index.html`:
 
-```
-http://100.76.19.104:8000/v1/chat/completions
+```js
+const ENDPOINT = "http://100.76.19.104:8000/v1/chat/completions";
+const MODEL = "Qwen/Qwen2.5-7B-Instruct";
 ```
 
-Open the page, click the ⚙ icon, set your endpoint URL / model, and chat.
-Settings and chat history are stored in your browser's `localStorage` only —
-nothing goes through a backend, so there's nothing to host besides this
-static file.
+Edit those two lines if your server address or model changes. Chat history
+is kept in your browser's `localStorage` only — nothing goes through a
+backend, so there's nothing to host besides this static file.
 
 ## Deploying to GitHub Pages
 
