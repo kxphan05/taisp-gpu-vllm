@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talk to Qwen</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --border: #e2e2e6;
+    --text: #1a1a1e;
+    --muted: #6b6b76;
+    --accent: #6c5ce7;
+    --accent-text: #ffffff;
+    --user-bubble: #6c5ce7;
+    --assistant-bubble: #eeeef2;
+    --error: #d64545;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --panel: #1e1e24;
+      --border: #2e2e36;
+      --text: #ececf1;
+      --muted: #9a9aa5;
+      --assistant-bubble: #2a2a32;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+  }
+  header .status {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  button.icon-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  button.icon-btn:hover { background: var(--assistant-bubble); }
+
+  #settings-panel {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  #settings-panel.open { display: flex; }
+  #settings-panel label {
+    font-size: 12px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+  #settings-panel input, #settings-panel textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  #settings-panel textarea { resize: vertical; min-height: 50px; }
+  .settings-row { display: flex; gap: 10px; }
+  .settings-row > div { flex: 1; }
+  .settings-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .settings-actions button {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .settings-actions button.primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--user-bubble);
+    color: var(--accent-text);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--assistant-bubble);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.error {
+    align-self: flex-start;
+    background: transparent;
+    color: var(--error);
+    border: 1px solid var(--error);
+  }
+  .msg.pending { color: var(--muted); }
+
+  #empty-hint {
+    margin: auto;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    max-width: 320px;
+  }
+
+  form#composer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+  }
+  form#composer textarea {
+    flex: 1;
+    resize: none;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    max-height: 140px;
+  }
+  form#composer button {
+    padding: 0 18px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  form#composer button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Talk to Qwen</h1>
+    <div class="status" id="status-line">not configured</div>
+  </div>
+  <button class="icon-btn" id="settings-toggle" title="Settings" aria-label="Settings">⚙</button>
+</header>
+
+<div id="settings-panel">
+  <div>
+    <label for="endpoint-input">vLLM endpoint URL</label>
+    <input id="endpoint-input" type="text" placeholder="http://100.76.19.104:8000/v1/chat/completions">
+  </div>
+  <div class="settings-row">
+    <div>
+      <label for="model-input">Model</label>
+      <input id="model-input" type="text" placeholder="Qwen/Qwen2.5-7B-Instruct">
+    </div>
+    <div>
+      <label for="key-input">API key (optional)</label>
+      <input id="key-input" type="text" placeholder="leave blank if none">
+    </div>
+  </div>
+  <div>
+    <label for="system-input">System prompt (optional)</label>
+    <textarea id="system-input" placeholder="You are a helpful assistant."></textarea>
+  </div>
+  <div class="settings-actions">
+    <button type="button" id="clear-chat-btn">Clear chat</button>
+    <button type="button" id="save-settings-btn" class="primary">Save</button>
+  </div>
+</div>
+
+<div id="chat">
+  <div id="empty-hint">Set your vLLM endpoint in ⚙ settings, then say hello.</div>
+</div>
+
+<form id="composer">
+  <textarea id="message-input" rows="1" placeholder="Message the model..." autofocus></textarea>
+  <button type="submit" id="send-btn">Send</button>
+</form>
+
+<script>
+  const STORAGE_KEY = "talktoqwen.settings.v1";
+  const HISTORY_KEY = "talktoqwen.history.v1";
+
+  const els = {
+    settingsToggle: document.getElementById("settings-toggle"),
+    settingsPanel: document.getElementById("settings-panel"),
+    endpointInput: document.getElementById("endpoint-input"),
+    modelInput: document.getElementById("model-input"),
+    keyInput: document.getElementById("key-input"),
+    systemInput: document.getElementById("system-input"),
+    saveBtn: document.getElementById("save-settings-btn"),
+    clearBtn: document.getElementById("clear-chat-btn"),
+    statusLine: document.getElementById("status-line"),
+    chat: document.getElementById("chat"),
+    emptyHint: document.getElementById("empty-hint"),
+    composer: document.getElementById("composer"),
+    messageInput: document.getElementById("message-input"),
+    sendBtn: document.getElementById("send-btn"),
+  };
+
+  function loadSettings() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveSettings(settings) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch {}
+  }
+
+  function loadHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory(history) {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch {}
+  }
+
+  let settings = Object.assign(
+    { endpoint: "", model: "Qwen/Qwen2.5-7B-Instruct", apiKey: "", system: "" },
+    loadSettings()
+  );
+  let history = loadHistory();
+
+  function refreshStatus() {
+    if (!settings.endpoint) {
+      els.statusLine.textContent = "not configured — click ⚙";
+    } else {
+      let host = settings.endpoint;
+      try { host = new URL(settings.endpoint).host; } catch {}
+      els.statusLine.textContent = `${settings.model || "model"} @ ${host}`;
+    }
+  }
+
+  function populateSettingsForm() {
+    els.endpointInput.value = settings.endpoint;
+    els.modelInput.value = settings.model;
+    els.keyInput.value = settings.apiKey;
+    els.systemInput.value = settings.system;
+  }
+
+  function renderHistory() {
+    els.chat.innerHTML = "";
+    if (history.length === 0) {
+      els.chat.appendChild(els.emptyHint);
+      return;
+    }
+    for (const msg of history) {
+      appendBubble(msg.role, msg.content);
+    }
+    els.chat.scrollTop = els.chat.scrollHeight;
+  }
+
+  function appendBubble(role, content, extraClass) {
+    if (els.emptyHint.parentNode) els.emptyHint.remove();
+    const div = document.createElement("div");
+    div.className = "msg " + role + (extraClass ? " " + extraClass : "");
+    div.textContent = content;
+    els.chat.appendChild(div);
+    els.chat.scrollTop = els.chat.scrollHeight;
+    return div;
+  }
+
+  els.settingsToggle.addEventListener("click", () => {
+    populateSettingsForm();
+    els.settingsPanel.classList.toggle("open");
+  });
+
+  els.saveBtn.addEventListener("click", () => {
+    settings = {
+      endpoint: els.endpointInput.value.trim(),
+      model: els.modelInput.value.trim() || "Qwen/Qwen2.5-7B-Instruct",
+      apiKey: els.keyInput.value.trim(),
+      system: els.systemInput.value.trim(),
+    };
+    saveSettings(settings);
+    refreshStatus();
+    els.settingsPanel.classList.remove("open");
+  });
+
+  els.clearBtn.addEventListener("click", () => {
+    history = [];
+    saveHistory(history);
+    renderHistory();
+  });
+
+  els.messageInput.addEventListener("input", () => {
+    els.messageInput.style.height = "auto";
+    els.messageInput.style.height = Math.min(els.messageInput.scrollHeight, 140) + "px";
+  });
+
+  els.messageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      els.composer.requestSubmit();
+    }
+  });
+
+  els.composer.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = els.messageInput.value.trim();
+    if (!text) return;
+
+    if (!settings.endpoint) {
+      appendBubble("error", "Set your vLLM endpoint URL in ⚙ settings first.");
+      return;
+    }
+
+    els.messageInput.value = "";
+    els.messageInput.style.height = "auto";
+
+    history.push({ role: "user", content: text });
+    saveHistory(history);
+    appendBubble("user", text);
+
+    const pending = appendBubble("assistant", "…", "pending");
+    els.sendBtn.disabled = true;
+
+    const apiMessages = [];
+    if (settings.system) apiMessages.push({ role: "system", content: settings.system });
+    for (const m of history) apiMessages.push({ role: m.role, content: m.content });
+
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (settings.apiKey) headers["Authorization"] = "Bearer " + settings.apiKey;
+
+      const res = await fetch(settings.endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: settings.model,
+          messages: apiMessages,
+        }),
+      });
+
+      if (!res.ok) {
+        const bodyText = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${res.statusText}${bodyText ? " — " + bodyText.slice(0, 300) : ""}`);
+      }
+
+      const data = await res.json();
+      const reply = data?.choices?.[0]?.message?.content ?? "(empty response)";
+
+      pending.classList.remove("pending");
+      pending.textContent = reply;
+      history.push({ role: "assistant", content: reply });
+      saveHistory(history);
+    } catch (err) {
+      pending.remove();
+      let hint = "";
+      if (err instanceof TypeError) {
+        hint = " (This is often CORS or mixed-content blocking — see README.)";
+      }
+      appendBubble("error", "Request failed: " + err.message + hint);
+    } finally {
+      els.sendBtn.disabled = false;
+      els.messageInput.focus();
+    }
+  });
+
+  populateSettingsForm();
+  refreshStatus();
+  renderHistory();
+  if (!settings.endpoint) els.settingsPanel.classList.add("open");
+</script>
+
+</body>
+</html>
