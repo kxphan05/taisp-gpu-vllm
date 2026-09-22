@@ -6,9 +6,15 @@ OpenAI-compatible server via SSE. The endpoint and model are hardcoded in
 `index.html`:
 
 ```js
-const ENDPOINT = "http://100.76.19.104:8000/v1/chat/completions";
+const ENDPOINT = "https://taisp-ws-001.tail519d90.ts.net/v1/chat/completions";
 const MODEL = "Qwen/Qwen2.5-7B-Instruct";
 ```
+
+The endpoint is served over HTTPS via `tailscale serve --bg 8000` running on the
+taisp server, which fronts vLLM's plain-HTTP port 8000 with a TLS cert on the
+tailnet's `.ts.net` hostname. This avoids browser mixed-content blocking
+entirely (no more "allow insecure content" workarounds needed). Only devices
+on the same tailnet can reach it, same as before.
 
 Edit those two lines if your server address or model changes. Chat history
 is kept in your browser's `localStorage` only — nothing goes through a
@@ -21,34 +27,13 @@ backend, so there's nothing to host besides this static file.
    whichever branch) and `/ (root)`.
 3. Your page will be live at `https://<username>.github.io/<repo>/`.
 
-## Important: this will not work out of the box
+## Server-side requirements
 
-GitHub Pages serves your site over **HTTPS**. Your vLLM server in the curl
-example is plain **HTTP**, and the IP (`100.76.19.104`) looks like a
-Tailscale address, reachable only from devices on your tailnet. Two problems
-follow:
+Two things have to be true on the vLLM side for the page to work:
 
-### 1. Mixed content blocking
-Browsers refuse to let an HTTPS page call an HTTP endpoint by default. When
-you open the page over `https://...github.io`, the fetch to
-`http://100.76.19.104:8000/...` will likely be blocked silently or with a
-console error like "Mixed Content: ... was blocked".
-
-Options, roughly in order of effort:
-- **Easiest**: click the padlock/shield icon in the browser address bar and
-  allow "insecure content" / "unsafe scripts" for this one site. Fine for
-  personal use on a machine you control.
-- **Better**: put a TLS reverse proxy (e.g. Caddy, or Tailscale's own HTTPS
-  via `tailscale serve`) in front of vLLM so the endpoint is
-  `https://100.76.19.104:8443/v1/chat/completions` or a proper HTTPS
-  hostname. Then there's no mixed-content issue at all.
-
-### 2. CORS
-Even over HTTPS, the vLLM server needs to explicitly allow cross-origin
-requests from `https://<username>.github.io`, or the browser will block the
-response with a CORS error.
-
-vLLM's OpenAI server supports CORS flags. Start it with something like:
+### 1. CORS
+vLLM must explicitly allow requests from `https://<username>.github.io`, or
+the browser blocks the response with a CORS error. Start vLLM with:
 
 ```
 vllm serve Qwen/Qwen2.5-7B-Instruct \
@@ -57,13 +42,21 @@ vllm serve Qwen/Qwen2.5-7B-Instruct \
 ```
 
 (Use `'["*"]'` to allow any origin — simplest for personal/tailnet-only use
-since the IP isn't reachable from the public internet anyway.)
+since the server isn't reachable from the public internet anyway.)
 
-### 3. Reachability
-Since `100.76.19.104` is a Tailscale IP, the page will only be able to reach
-your model from a device that's also on your tailnet (or via `tailscale
-serve`/Funnel if you want it public). That's expected — this isn't a public
-API, just a browser UI for your own server.
+### 2. HTTPS (to avoid mixed-content blocking)
+GitHub Pages serves this site over HTTPS, and browsers block an HTTPS page
+from calling a plain-HTTP endpoint. That's why the endpoint above is a
+`tailscale serve`-fronted `.ts.net` HTTPS URL instead of the raw
+`http://<tailscale-ip>:8000` address:
+
+```bash
+tailscale serve --bg 8000
+```
+
+run on the machine hosting vLLM. This terminates TLS via Tailscale and
+forwards to `localhost:8000`. Only devices on the same tailnet can reach it
+(same reachability as the raw IP — just with a valid HTTPS cert now).
 
 ## Files
 
